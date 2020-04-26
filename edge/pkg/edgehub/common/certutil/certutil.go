@@ -10,11 +10,11 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"github.com/kubeedge/kubeedge/edge/pkg/edgehub/common/http"
 	"io/ioutil"
 	"os"
 
 	"github.com/kubeedge/kubeedge/edge/pkg/edgehub/config"
+	"github.com/kubeedge/kubeedge/edge/pkg/edgehub/common/http"
 )
 
 const 	privateKeyBits       = 2048
