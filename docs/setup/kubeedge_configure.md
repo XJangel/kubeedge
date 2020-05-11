@@ -128,6 +128,8 @@ At this point we have completed all configuration changes related to cloudcore.
 
 ### Manually copy certs.tgz from cloud host to edge host(s)
 
+**Note:**  From v1.3 just skip this step, the edgecore will apply for the certificate automatically from the cloudcore when starting. You can also configure the local certificate(The CA certificate in edge site must be the same with cloudcore now). Any directory is OK as long as you configure it in the edgecore.yaml below.
+
 On edge host
 
 ```shell
@@ -186,7 +188,9 @@ Verify the configurations before running `edgecore`
     + `kubeedge/pause-arm64:3.1` for arm64 arch
     + `kubeedge/pause:3.1` for x86 arch
 
-2. Check whether the cert files for `modules.edgehub.tlsCaFile` and `modules.edgehub.tlsCertFile` and `modules.edgehub.tlsPrivateKeyFile` exists. If those files not exist, you need to copy them from cloud side.
+2. Before v1.3: check whether the cert files for `modules.edgehub.tlsCaFile` and `modules.edgehub.tlsCertFile` and `modules.edgehub.tlsPrivateKeyFile` exists. If those files not exist, you need to copy them from cloud side.
+
+    From v1.3: just skip above check about cert files. However, if you configure the certificate manually, you must check if the path of certificate is right. 
 
 3. Update the IP address and port of the KubeEdge CloudCore in the `modules.edgehub.websocket.server` and `modules.edgehub.quic.server` field. You need set cloudcore ip address.
 
@@ -203,6 +207,55 @@ Verify the configurations before running `edgecore`
     ```
 
 5. If your runtime-type is remote, follow this guide [KubeEdge CRI Configuration](kubeedge_cri_configure.md) to setup KubeEdge with the remote/CRI based runtimes.
+
+    **Note:** If your KubeEdge version is before the v1.3, then just skip the steps 6-7.
+
+6. Configure the IP address and port of the KubeEdge cloudcore in the `modules.edgehub.httpServer` which is used to apply for the certificate. For example:
+
+    ```yaml
+    modules:
+      edgeHub:
+        httpServer: https://10.1.11.85:10002
+    ```
+
+7. Configure the token.
+
+    ```shell
+    kubectl get secret tokensecret -n kubeedge -oyaml
+    ```
+
+    Then you get it like this:
+
+    ```yaml
+    apiVersion: v1
+    data:
+      tokendata: ODEzNTZjY2MwODIzMmIxMTU0Y2ExYmI5MmRlZjY4YWQwMGQ3ZDcwOTIzYmU3YjcyZWZmOTVlMTdiZTk5MzdkNS5leUpoYkdjaU9pSklVekkxTmlJc0luUjVjQ0k2SWtwWFZDSjkuZXlKbGVIQWlPakUxT0RreE5qRTVPRGw5LmpxNENXNk1WNHlUVkpVOWdBUzFqNkRCdE5qeVhQT3gxOHF5RnFfOWQ4WFkK
+    kind: Secret
+    metadata:
+      creationTimestamp: "2020-05-10T01:53:10Z"
+      name: tokensecret
+      namespace: kubeedge
+      resourceVersion: "19124039"
+      selfLink: /api/v1/namespaces/kubeedge/secrets/tokensecret
+      uid: 48429ce1-2d5a-4f0e-9ff1-f0f1455a12b4
+    type: Opaque
+    ```
+
+    Decode the token string by base64:
+
+    ```shell
+    echo ODEzNTZjY2MwODIzMmIxMTU0Y2ExYmI5MmRlZjY4YWQwMGQ3ZDcwOTIzYmU3YjcyZWZmOTVlMTdiZTk5MzdkNS5leUpoYkdjaU9pSklVekkxTmlJc0luUjVjQ0k2SWtwWFZDSjkuZXlKbGVIQWlPakUxT0RreE5qRTVPRGw5LmpxNENXNk1WNHlUVkpVOWdBUzFqNkRCdE5qeVhQT3gxOHF5RnFfOWQ4WFkK |base64 -d
+    # then we get
+    81356ccc08232b1154ca1bb92def68ad00d7d70923be7b72eff95e17be9937d5.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODkxNjE5ODl9.jq4CW6MV4yTVJU9gAS1j6DBtNjyXPOx18qyFq_9d8XY
+    ```
+    
+    Copy the decoded string to the edgecore.yaml just like follow:
+    
+    ```yaml
+    modules:
+      edgeHub:
+        token: 81356ccc08232b1154ca1bb92def68ad00d7d70923be7b72eff95e17be9937d5.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1ODkxNjE5ODl9.jq4CW6MV4yTVJU9gAS1j6DBtNjyXPOx18qyFq_9d8XY
+    ```
 
 #### Configuring MQTT mode
 
