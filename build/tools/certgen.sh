@@ -49,6 +49,7 @@ genCertAndKey() {
 }
 
 stream() {
+    ensureFolder
     readonly streamsubject=${SUBJECT:-/C=CN/ST=Zhejiang/L=Hangzhou/O=KubeEdge}
     readonly STREAM_KEY_FILE=${certPath}/stream.key
     readonly STREAM_CSR_FILE=${certPath}/stream.csr
@@ -101,6 +102,29 @@ $(pr -T -o 4 ${caPath}/rootCA.crt)
   edge.crt: |
 $(pr -T -o 4 ${certPath}/${name}.crt)
   edge.key: |
+$(pr -T -o 4 ${certPath}/${name}.key)
+
+EOF
+}
+
+buildStreamCertSecret() {
+    local name="stream"
+    stream  > /dev/null 2>&1
+    cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: streamcert
+  namespace: kubeedge
+  labels:
+    k8s-app: kubeedge
+    kubeedge: cloudcore
+stringData:
+  streamCA.crt: |
+$(pr -T -o 4 ${caPath}/streamCA.crt)
+  stream.crt: |
+$(pr -T -o 4 ${certPath}/${name}.crt)
+  stream.key: |
 $(pr -T -o 4 ${certPath}/${name}.key)
 
 EOF
