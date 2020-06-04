@@ -108,7 +108,8 @@ func NewDefaultEdgeCoreConfig() *EdgeCoreConfig {
 					Scheme: "https",
 					Host:   net.JoinHostPort(localIP, "10002"),
 				}).String(),
-				Token: "",
+				Token:          "",
+				EnableRotation: true,
 			},
 			EventBus: &EventBus{
 				Enable:               true,

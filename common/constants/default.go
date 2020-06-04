@@ -17,6 +17,9 @@ const (
 	DefaultCADir        = "/etc/kubeedge/ca"
 	DefaultCertDir      = "/etc/kubeedge/certs"
 
+	DefaultCAURL   = "/ca.crt"
+	DefaultCertURL = "/edge.crt"
+
 	DefaultStreamCAFile   = "/etc/kubeedge/ca/streamCA.crt"
 	DefaultStreamCertFile = "/etc/kubeedge/certs/stream.crt"
 	DefaultStreamKeyFile  = "/etc/kubeedge/certs/stream.key"

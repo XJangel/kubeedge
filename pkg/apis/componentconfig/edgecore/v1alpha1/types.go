@@ -269,6 +269,9 @@ type EdgeHub struct {
 	Token string `json:"token"`
 	// HTTPServer indicates the server for edge to apply for the certificate.
 	HTTPServer string `json:"httpServer,omitempty"`
+	// EnableRotation indicates whether edge certificate is rotated
+	// default true
+	EnableRotation bool `json:"enableRotation,omitempty"`
 }
 
 // EdgeHubQUIC indicates the quic client config

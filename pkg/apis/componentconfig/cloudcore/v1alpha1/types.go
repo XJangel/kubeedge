@@ -113,6 +113,9 @@ type CloudHub struct {
 	HTTPS *CloudHubHTTPS `json:"https,omitempty"`
 	// AdvertiseAddress sets the IP address for the cloudcore to advertise.
 	AdvertiseAddress []string `json:"advertiseAddress,omitempty"`
+	// EdgeCertValidityPeriod indicates the validity period of edge certificate
+	// default 365
+	EdgeCertValidityPeriod int32 `json:"edgeCertValidityPeriod,omitempty"`
 }
 
 // CloudHubQUIC indicates the quic server config

@@ -3,7 +3,6 @@ package http
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
@@ -65,15 +64,16 @@ func NewHTTPSclient(certFile, keyFile string) (*http.Client, error) {
 }
 
 // NewHTTPclientWithCA create client without certificate
-func NewHTTPclientWithCA(ca []byte) (*http.Client, error) {
+func NewHTTPclientWithCA(capem []byte, certificate tls.Certificate) (*http.Client, error) {
 	pool := x509.NewCertPool()
-	if ok := pool.AppendCertsFromPEM(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca})); !ok {
+	if ok := pool.AppendCertsFromPEM(capem); !ok {
 		return nil, fmt.Errorf("cannot parse the certificates")
 	}
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs:            pool,
 			InsecureSkipVerify: false,
+			Certificates:       []tls.Certificate{certificate},
 		},
 	}
 	client := &http.Client{Transport: tr, Timeout: connectTimeout}
