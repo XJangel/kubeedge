@@ -99,11 +99,10 @@ func edgeCoreClientCert(w http.ResponseWriter, r *http.Request) {
 		if err := verifyCert(cert[0]); err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(err.Error()))
-			return
 		} else {
 			signEdgeCert(w, r)
-			return
 		}
+		return
 	}
 	if ok := verifyAuthorization(w, r); ok {
 		signEdgeCert(w, r)

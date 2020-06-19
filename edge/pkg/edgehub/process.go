@@ -215,12 +215,8 @@ func (eh *EdgeHub) pubConnectInfo(isConnected bool) {
 func (eh *EdgeHub) ifRotationDone() {
 	if eh.certManager.RotateCertificates {
 		for {
-			select {
-			case <-eh.certManager.Done:
-				eh.reconnectChan <- struct{}{}
-			}
+			<-eh.certManager.Done
+			eh.reconnectChan <- struct{}{}
 		}
 	}
-
-	return
 }

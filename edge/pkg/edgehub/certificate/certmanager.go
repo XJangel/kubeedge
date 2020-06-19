@@ -54,6 +54,7 @@ type CertManager struct {
 	Done    chan struct{}
 }
 
+// NewCertManager creates a CertManager for edge certificate management according to EdgeHub config
 func NewCertManager(edgehub v1alpha1.EdgeHub) CertManager {
 	certReq := &x509.CertificateRequest{
 		Subject: pkix.Name{
@@ -78,6 +79,7 @@ func NewCertManager(edgehub v1alpha1.EdgeHub) CertManager {
 	}
 }
 
+// Start starts the CertManager
 func (cm *CertManager) Start() {
 	_, err := cm.getCurrent()
 	if err != nil {
@@ -91,87 +93,7 @@ func (cm *CertManager) Start() {
 	}
 }
 
-func (cm *CertManager) rotate() {
-	klog.Infof("Certificate rotation is enabled.")
-	go wait.Forever(func() {
-		deadline, err := cm.nextRotationDeadline()
-		if err != nil {
-			klog.Errorf("failed to get next rotation deadline:%v", err)
-		}
-		if sleepInterval := deadline.Sub(cm.now()); sleepInterval > 0 {
-			klog.Infof("Waiting %v for next certificate rotation", sleepInterval)
-
-			timer := time.NewTimer(sleepInterval)
-			defer timer.Stop()
-
-			select {
-			case <-timer.C:
-				// unblock when deadline expires
-			}
-		}
-
-		backoff := wait.Backoff{
-			Duration: 2 * time.Second,
-			Factor:   2,
-			Jitter:   0.1,
-			Steps:    5,
-		}
-		if err := wait.ExponentialBackoff(backoff, cm.rotateCert); err != nil {
-			utilruntime.HandleError(fmt.Errorf("reached backoff limit, still unable to rotate certs: %v", err))
-			wait.PollInfinite(32*time.Second, cm.rotateCert)
-		}
-	}, time.Second)
-}
-
-func (cm *CertManager) rotateCert() (bool, error) {
-	klog.Infof("Rotating certificates")
-
-	tlsCert, err := cm.getCurrent()
-	if err != nil {
-		klog.Errorf("failed to get current certificate:%v", err)
-		return false, nil
-	}
-	caPem, err := cm.getCA()
-	if err != nil {
-		klog.Errorf("failed to get CA certificate locally:%v", err)
-		return false, nil
-	}
-	pk, edgecert, err := cm.GetEdgeCert(cm.certURL, caPem, *tlsCert, "")
-	if err != nil {
-		klog.Errorf("failed to get edge certificate from CloudCore:%v", err)
-		return false, nil
-	}
-	// save the edge.crt to the file
-	cert, err := x509.ParseCertificate(edgecert)
-	if err != nil {
-		klog.Errorf("failed to parse edge certificate:%v", err)
-		return false, nil
-	}
-	if err = certutil.WriteKeyAndCert(cm.keyFile, cm.certFile, pk, cert); err != nil {
-		klog.Errorf("failed to save edge key and certificate:%v", err)
-		return false, nil
-	}
-
-	klog.Info("succeeded to rotate certificate")
-
-	cm.Done <- struct{}{}
-
-	return true, nil
-}
-
-func (cm *CertManager) nextRotationDeadline() (time.Time, error) {
-	cert, err := cm.getCurrent()
-	if err != nil {
-		return time.Time{}, fmt.Errorf("faild to get current certificate")
-	}
-	notAfter := cert.Leaf.NotAfter
-	totalDuration := float64(notAfter.Sub(cert.Leaf.NotBefore))
-	deadline := cert.Leaf.NotBefore.Add(jitteryDuration(totalDuration))
-	klog.Infof("Certificate expiration is %v, rotation deadline is %v", notAfter, deadline)
-
-	return deadline, nil
-}
-
+// getCurrent returns current edge certificate
 func (cm *CertManager) getCurrent() (*tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(cm.certFile, cm.keyFile)
 	if err != nil {
@@ -184,10 +106,8 @@ func (cm *CertManager) getCurrent() (*tls.Certificate, error) {
 	cert.Leaf = certs[0]
 	return &cert, nil
 }
-func (cm *CertManager) getCA() ([]byte, error) {
-	return ioutil.ReadFile(cm.caFile)
-}
 
+// applyCerts realizes the certificate application by token
 func (cm *CertManager) applyCerts() error {
 	cacert, err := GetCACert(cm.caURL)
 	if err != nil {
@@ -230,6 +150,92 @@ func (cm *CertManager) applyCerts() error {
 	return nil
 }
 
+// rotate starts edge certificate rotation process
+func (cm *CertManager) rotate() {
+	klog.Infof("Certificate rotation is enabled.")
+	go wait.Forever(func() {
+		deadline, err := cm.nextRotationDeadline()
+		if err != nil {
+			klog.Errorf("failed to get next rotation deadline:%v", err)
+		}
+		if sleepInterval := deadline.Sub(cm.now()); sleepInterval > 0 {
+			klog.Infof("Waiting %v for next certificate rotation", sleepInterval)
+
+			timer := time.NewTimer(sleepInterval)
+			defer timer.Stop()
+
+			<-timer.C // unblock when deadline expires
+		}
+
+		backoff := wait.Backoff{
+			Duration: 2 * time.Second,
+			Factor:   2,
+			Jitter:   0.1,
+			Steps:    5,
+		}
+		if err := wait.ExponentialBackoff(backoff, cm.rotateCert); err != nil {
+			utilruntime.HandleError(fmt.Errorf("reached backoff limit, still unable to rotate certs: %v", err))
+			wait.PollInfinite(32*time.Second, cm.rotateCert)
+		}
+	}, time.Second)
+}
+
+// nextRotationDeadline returns the rotation deadline. It is different in every rotation.
+func (cm *CertManager) nextRotationDeadline() (time.Time, error) {
+	cert, err := cm.getCurrent()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("faild to get current certificate")
+	}
+	notAfter := cert.Leaf.NotAfter
+	totalDuration := float64(notAfter.Sub(cert.Leaf.NotBefore))
+	deadline := cert.Leaf.NotBefore.Add(jitteryDuration(totalDuration))
+	klog.Infof("Certificate expiration is %v, rotation deadline is %v", notAfter, deadline)
+
+	return deadline, nil
+}
+
+// rotateCert realizes the specific process of edge certificate rotation.
+func (cm *CertManager) rotateCert() (bool, error) {
+	klog.Infof("Rotating certificates")
+
+	tlsCert, err := cm.getCurrent()
+	if err != nil {
+		klog.Errorf("failed to get current certificate:%v", err)
+		return false, nil
+	}
+	caPem, err := cm.getCA()
+	if err != nil {
+		klog.Errorf("failed to get CA certificate locally:%v", err)
+		return false, nil
+	}
+	pk, edgecert, err := cm.GetEdgeCert(cm.certURL, caPem, *tlsCert, "")
+	if err != nil {
+		klog.Errorf("failed to get edge certificate from CloudCore:%v", err)
+		return false, nil
+	}
+	// save the edge.crt to the file
+	cert, err := x509.ParseCertificate(edgecert)
+	if err != nil {
+		klog.Errorf("failed to parse edge certificate:%v", err)
+		return false, nil
+	}
+	if err = certutil.WriteKeyAndCert(cm.keyFile, cm.certFile, pk, cert); err != nil {
+		klog.Errorf("failed to save edge key and certificate:%v", err)
+		return false, nil
+	}
+
+	klog.Info("succeeded to rotate certificate")
+
+	cm.Done <- struct{}{}
+
+	return true, nil
+}
+
+// getCA returns the CA in pem format.
+func (cm *CertManager) getCA() ([]byte, error) {
+	return ioutil.ReadFile(cm.caFile)
+}
+
 // GetCACert gets the cloudcore CA certificate
 func GetCACert(url string) ([]byte, error) {
 	client := http.NewHTTPClient()
@@ -249,19 +255,6 @@ func GetCACert(url string) ([]byte, error) {
 	}
 
 	return caCert, nil
-}
-
-func (cm *CertManager) getCSR() (*ecdsa.PrivateKey, []byte, error) {
-	pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	csr, err := x509.CreateCertificateRequest(rand.Reader, cm.CR, pk)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return pk, csr, nil
 }
 
 // GetEdgeCert applies for the certificate from cloudcore
@@ -298,9 +291,17 @@ func (cm *CertManager) GetEdgeCert(url string, capem []byte, cert tls.Certificat
 	return pk, content, nil
 }
 
-func hashCA(cacerts []byte) string {
-	digest := sha256.Sum256(cacerts)
-	return hex.EncodeToString(digest[:])
+func (cm *CertManager) getCSR() (*ecdsa.PrivateKey, []byte, error) {
+	pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+	csr, err := x509.CreateCertificateRequest(rand.Reader, cm.CR, pk)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pk, csr, nil
 }
 
 // ValidateCACerts validates the CA certificate by hash code
@@ -311,4 +312,9 @@ func ValidateCACerts(cacerts []byte, hash string) (bool, string, string) {
 
 	newHash := hashCA(cacerts)
 	return hash == newHash, hash, newHash
+}
+
+func hashCA(cacerts []byte) string {
+	digest := sha256.Sum256(cacerts)
+	return hex.EncodeToString(digest[:])
 }
