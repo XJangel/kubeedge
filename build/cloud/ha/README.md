@@ -7,7 +7,7 @@ Determine a VIP that the CloudCore service exposed to the edge nodes. Here we re
 The use of `nodeSelector` is as follow:
 
 ```bash
-kubectl label nodes [nodename] [key]=[value]  # label the nodes where the cloudcore will run 
+kubectl label nodes [nodename] [key]=[value]  # label the nodes where the cloudcore will run
 ```
 
 modify the term of `nodeselector`:
@@ -21,7 +21,7 @@ spec:
   template:
     spec:
       nodeSelector: # configure the nodeSelector here!
-        [key]: [value] 
+        [key]: [value]
 ```
 
 ## Create k8s resources
@@ -35,7 +35,7 @@ cd $GOPATH/src/github.com/kubeedge/kubeedge
 make cloudimage
 ```
 
-We create k8s resources from the manifests in name order. Before creating, **check the content of each manifest to make sure it meets your environment.** 
+We create k8s resources from the manifests in name order. Before creating, **check the content of each manifest to make sure it meets your environment.**
 
 **Note:** Now the follow manifests don't support `kubectl logs` command yet. If need, you have to make more configuration manually.
 
@@ -81,7 +81,7 @@ global_defs {
 # CloudCore
 vrrp_script CloudCore_check {
   script "/etc/keepalived/check_CloudCore.sh" # the script for health check
-  
+
   interval 2
   weight 2
   fall 2
