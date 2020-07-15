@@ -90,7 +90,7 @@ func SendRequest(req *http.Request, client *http.Client) (*http.Response, error)
 }
 
 // BuildRequest Creates a HTTP request.
-func BuildRequest(method string, urlStr string, body io.Reader, token string) (*http.Request, error) {
+func BuildRequest(method string, urlStr string, body io.Reader, token string, nodeName string) (*http.Request, error) {
 	req, err := http.NewRequest(method, urlStr, body)
 	if err != nil {
 		return nil, err
@@ -98,6 +98,9 @@ func BuildRequest(method string, urlStr string, body io.Reader, token string) (*
 	if token != "" {
 		bearerToken := "Bearer " + token
 		req.Header.Add("Authorization", bearerToken)
+	}
+	if nodeName != "" {
+		req.Header.Add("NodeName", nodeName)
 	}
 	return req, nil
 }

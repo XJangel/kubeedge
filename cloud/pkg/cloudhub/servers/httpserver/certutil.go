@@ -17,7 +17,7 @@ import (
 	hubconfig "github.com/kubeedge/kubeedge/cloud/pkg/cloudhub/config"
 )
 
-const validalityPeriod = int32(365 * 100)
+const validalityPeriod time.Duration = 365 * 100
 
 // NewCertificateAuthorityDer returns certDer and key
 func NewCertificateAuthorityDer() ([]byte, crypto.Signer, error) {
@@ -93,7 +93,7 @@ func NewCloudCoreCertDERandKey(cfg *certutil.Config) ([]byte, []byte, error) {
 }
 
 // NewCertFromCa creates a signed certificate using the given CA certificate and key
-func NewCertFromCa(cfg *certutil.Config, caCert *x509.Certificate, serverKey crypto.PublicKey, caKey crypto.Signer, t int32) ([]byte, error) {
+func NewCertFromCa(cfg *certutil.Config, caCert *x509.Certificate, serverKey crypto.PublicKey, caKey crypto.Signer, validalityPeriod time.Duration) ([]byte, error) {
 	serial, err := rand.Int(rand.Reader, new(big.Int).SetInt64(math.MaxInt64))
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func NewCertFromCa(cfg *certutil.Config, caCert *x509.Certificate, serverKey cry
 		IPAddresses:  cfg.AltNames.IPs,
 		SerialNumber: serial,
 		NotBefore:    time.Now().UTC(),
-		NotAfter:     time.Now().Add(time.Hour * 24 * time.Duration(t)),
+		NotAfter:     time.Now().Add(time.Hour * 24 * validalityPeriod),
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  cfg.Usages,
 	}

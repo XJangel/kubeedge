@@ -20,6 +20,8 @@ const (
 	DefaultCAURL   = "/ca.crt"
 	DefaultCertURL = "/edge.crt"
 
+	DefaultCloudCoreReadyCheckURL = "/readyz"
+
 	DefaultStreamCAFile   = "/etc/kubeedge/ca/streamCA.crt"
 	DefaultStreamCertFile = "/etc/kubeedge/certs/stream.crt"
 	DefaultStreamKeyFile  = "/etc/kubeedge/certs/stream.key"

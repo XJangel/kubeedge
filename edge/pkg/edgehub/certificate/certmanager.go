@@ -40,10 +40,12 @@ var jitteryDuration = func(totalDuration float64) time.Duration {
 
 type CertManager struct {
 	RotateCertificates bool
+	NodeName           string
 	CR                 *x509.CertificateRequest
-	caFile             string
-	certFile           string
-	keyFile            string
+
+	caFile   string
+	certFile string
+	keyFile  string
 
 	token string
 	// Set to time.Now but can be stubbed out for testing
@@ -55,7 +57,7 @@ type CertManager struct {
 }
 
 // NewCertManager creates a CertManager for edge certificate management according to EdgeHub config
-func NewCertManager(edgehub v1alpha1.EdgeHub) CertManager {
+func NewCertManager(edgehub v1alpha1.EdgeHub, nodename string) CertManager {
 	certReq := &x509.CertificateRequest{
 		Subject: pkix.Name{
 			Country:      []string{"CN"},
@@ -66,7 +68,8 @@ func NewCertManager(edgehub v1alpha1.EdgeHub) CertManager {
 		},
 	}
 	return CertManager{
-		RotateCertificates: edgehub.EnableRotation,
+		RotateCertificates: edgehub.RotateCertificates,
+		NodeName:           nodename,
 		token:              edgehub.Token,
 		CR:                 certReq,
 		caFile:             edgehub.TLSCAFile,
@@ -239,7 +242,7 @@ func (cm *CertManager) getCA() ([]byte, error) {
 // GetCACert gets the cloudcore CA certificate
 func GetCACert(url string) ([]byte, error) {
 	client := http.NewHTTPClient()
-	req, err := http.BuildRequest("GET", url, nil, "")
+	req, err := http.BuildRequest("GET", url, nil, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +272,7 @@ func (cm *CertManager) GetEdgeCert(url string, capem []byte, cert tls.Certificat
 		return nil, nil, fmt.Errorf("falied to create http client:%v", err)
 	}
 
-	req, err := http.BuildRequest("GET", url, bytes.NewReader(csr), token)
+	req, err := http.BuildRequest("GET", url, bytes.NewReader(csr), token, cm.NodeName)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate http request:%v", err)
 	}

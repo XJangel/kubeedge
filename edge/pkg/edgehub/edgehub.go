@@ -64,7 +64,7 @@ func (eh *EdgeHub) Enable() bool {
 
 //Start sets context and starts the controller
 func (eh *EdgeHub) Start() {
-	eh.certManager = certificate.NewCertManager(config.Config.EdgeHub)
+	eh.certManager = certificate.NewCertManager(config.Config.EdgeHub, config.Config.NodeName)
 	eh.certManager.Start()
 
 	HasTLSTunnelCerts <- true
